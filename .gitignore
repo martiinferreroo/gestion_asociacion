@@ -1,0 +1,13 @@
+# Datos de la asociación: NUNCA al repositorio (datos personales)
+data/
+src/*.db
+src/.secret_key
+src/copias/
+src/static/uploads/*
+!src/static/uploads/.gitkeep
+
+# Entorno
+.env
+.venv/
+__pycache__/
+*.pyc

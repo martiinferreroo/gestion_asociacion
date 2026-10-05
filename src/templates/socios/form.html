@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Nuevo socio' if modo == 'nuevo' else 'Editar socio' }} · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="form-narrow">
+    <a class="back" href="{{ '/socios' if modo == 'nuevo' else '/socios/' ~ socio.num_socio }}">← Volver</a>
+    <div class="card">
+        <h1 style="margin-bottom:18px;">{{ 'Nuevo socio' if modo == 'nuevo' else 'Editar socio #' ~ socio.num_socio }}</h1>
+
+        {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+
+        <form method="post" action="{{ '/socios/nuevo' if modo == 'nuevo' else '/socios/' ~ socio.num_socio ~ '/editar' }}">
+            {% if modo == 'nuevo' %}
+            <div class="field">
+                <label for="num_socio">Número de socio <span class="req">*</span></label>
+                <input type="number" id="num_socio" name="num_socio" min="1" required value="{{ datos.num_socio }}">
+                <p class="hint">Se propone el siguiente libre. Puedes cambiarlo si das de alta socios con números antiguos.</p>
+            </div>
+            {% endif %}
+
+            <div class="cols">
+                <div class="field">
+                    <label for="nombre">Nombre <span class="req">*</span></label>
+                    <input type="text" id="nombre" name="nombre" required value="{{ datos.nombre or '' }}">
+                </div>
+                <div class="field">
+                    <label for="apellidos">Apellidos <span class="req">*</span></label>
+                    <input type="text" id="apellidos" name="apellidos" required value="{{ datos.apellidos or '' }}">
+                </div>
+                <div class="field">
+                    <label for="dni">DNI / NIE <span class="req">*</span></label>
+                    <input type="text" id="dni" name="dni" required value="{{ datos.dni or '' }}">
+                </div>
+                <div class="field">
+                    <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                    <input type="date" id="fecha_nacimiento" name="fecha_nacimiento" value="{{ datos.fecha_nacimiento or '' }}">
+                </div>
+                <div class="field">
+                    <label for="telefono">Teléfono</label>
+                    <input type="tel" id="telefono" name="telefono" value="{{ datos.telefono or '' }}">
+                </div>
+                <div class="field">
+                    <label for="email">Correo electrónico</label>
+                    <input type="email" id="email" name="email" value="{{ datos.email or '' }}">
+                </div>
+                <div class="field full">
+                    <label for="direccion">Dirección</label>
+                    <input type="text" id="direccion" name="direccion" value="{{ datos.direccion or '' }}">
+                </div>
+                <div class="field full">
+                    <label for="notas">Notas</label>
+                    <textarea id="notas" name="notas" rows="3">{{ datos.notas or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a class="btn sec" href="{{ '/socios' if modo == 'nuevo' else '/socios/' ~ socio.num_socio }}">Cancelar</a>
+                <button type="submit" class="btn">{{ 'Registrar socio' if modo == 'nuevo' else 'Guardar cambios' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

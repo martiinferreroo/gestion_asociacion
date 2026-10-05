@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Inicio</h1>
+        <p>{{ hoy|fecha }}</p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="/cuotas/pago">Registrar pago</a>
+        <a class="btn sec" href="/socios/nuevo">Nuevo socio</a>
+    </div>
+</div>
+
+<div class="grid g3" style="margin-bottom:20px;">
+    <div class="stat principal"><b>{{ recaudado|eur }}</b><span>Cobrado en {{ anio }}</span></div>
+    <div class="stat"><b>{{ estados[0].n }}</b><span>Socios al día</span></div>
+    <div class="stat"><b>{{ estados[1].n }}</b><span>Socios con la cuota pendiente</span></div>
+</div>
+
+<div class="grid g2">
+    <section class="card">
+        <h2>Estado de los socios</h2>
+        <div class="reparto">
+            <div class="donut" style="background: {{ donut }};" data-total="{{ total }}" role="img" aria-label="{{ total }} socios en total"></div>
+            <ul class="leyenda">
+                {% for e in estados %}
+                <li><i style="background: {{ e.color }};"></i>{{ e.nombre }}<b>{{ e.n }}</b></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Cumpleaños de este mes</h2>
+        {% if cumpleanios %}
+        <ul class="lista">
+            {% for s in cumpleanios %}
+            <li>
+                <div><a href="/socios/{{ s.num_socio }}">{{ s.nombre }} {{ s.apellidos }}</a>
+                    <small>Día {{ s.fecha_nacimiento.day }}</small></div>
+                {{ badge(s.estado) }}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="vacio">Nadie cumple años este mes.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <h2>Últimos pagos <small><a href="/cuotas">Ver todos</a></small></h2>
+    {% if ultimos_pagos %}
+    <div class="table-wrap">
+        <table class="tabla">
+            <tbody>
+                {% for c in ultimos_pagos %}
+                <tr class="{{ 'anulada' if c.anulada }}" data-href="/cuotas/{{ c.id_cuota }}">
+                    <td><a href="/cuotas/{{ c.id_cuota }}">{{ c.id_cuota }}</a></td>
+                    <td>#{{ c.socio.num_socio }} {{ c.socio.nombre }} {{ c.socio.apellidos }}</td>
+                    <td>{{ c.fecha_pago|fecha }}</td>
+                    <td class="num importe">{{ c.importe|eur }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="vacio">Todavía no hay pagos registrados.</p>
+    {% endif %}
+</section>
+{% endblock %}

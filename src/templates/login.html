@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Acceso · {{ config.nombre_asociacion }}{% endblock %}
+{% block body_class %}acceso{% endblock %}
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="acceso-marca">
+    {% if config.logo_url %}<img src="{{ config.logo_url }}" alt="">{% endif %}
+    <h1>{{ config.nombre_asociacion }}</h1>
+    <p>Gestión de socios y cuotas</p>
+</div>
+<div class="card">
+    {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+    <form action="/login" method="post">
+        <div class="field">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+        </div>
+        <div class="field">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn" style="width:100%; justify-content:center;">Entrar</button>
+    </form>
+</div>
+{% endblock %}

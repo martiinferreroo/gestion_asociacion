@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Cuotas y pagos · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Cuotas y pagos</h1>
+        <p><span data-contador>{{ cuotas|length }} de {{ cuotas|length }}</span></p>
+    </div>
+    <div class="actions"><a class="btn" href="/cuotas/pago">Registrar pago</a></div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:16px 16px 0;">
+        <input type="search" class="buscador" data-filter="#tabla" placeholder="Buscar por recibo, socio o forma de pago" aria-label="Buscar pagos" style="width:100%; padding:9px 11px; border:1px solid #c5cdd7; border-radius:8px; font:inherit;">
+    </div>
+    <div class="table-wrap">
+        <table class="tabla" id="tabla">
+            <thead>
+                <tr>
+                    <th data-sort="texto">Recibo</th>
+                    <th data-sort="texto">Socio</th>
+                    <th data-sort="num">Fecha</th>
+                    <th data-sort="texto">Forma de pago</th>
+                    <th class="num" data-sort="num">Importe</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cuotas %}
+                <tr class="{{ 'anulada' if c.anulada }}" data-href="/cuotas/{{ c.id_cuota }}">
+                    <td><a href="/cuotas/{{ c.id_cuota }}"><b>{{ c.id_cuota }}</b></a>
+                        {% if c.anulada %}<span class="badge anulado">Anulado</span>{% endif %}</td>
+                    <td>#{{ c.socio.num_socio }} {{ c.socio.nombre }} {{ c.socio.apellidos }}</td>
+                    <td data-v="{{ c.fecha_pago.strftime('%Y%m%d%H%M') }}">{{ c.fecha_pago|fechahora }}</td>
+                    <td>{{ c.forma_pago }}</td>
+                    <td class="num importe" data-v="{{ c.importe }}">{{ c.importe|eur }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="vacio">Todavía no hay pagos. <a href="/cuotas/pago">Registra el primero</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

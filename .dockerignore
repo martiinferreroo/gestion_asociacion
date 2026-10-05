@@ -1,0 +1,8 @@
+.git
+data
+**/__pycache__
+src/*.db
+src/.secret_key
+src/copias
+src/static/uploads/*
+!src/static/uploads/.gitkeep

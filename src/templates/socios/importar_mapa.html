@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Importar socios · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<a class="back" href="/socios/importar">← Elegir otro archivo</a>
+<div class="page-head">
+    <div>
+        <h1>Importar socios</h1>
+        <p>{{ total }} filas de datos{% if recortado %} (el archivo tiene más de {{ max_filas }}; solo se leen las primeras){% endif %}</p>
+    </div>
+</div>
+
+{% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+
+<section class="card">
+    <h2>1. El archivo</h2>
+    <form method="get" action="/socios/importar/{{ token }}" class="opciones-fila">
+        {% if hojas|length > 1 %}
+        <div class="field" style="margin:0;">
+            <label for="hoja">Hoja</label>
+            <select id="hoja" name="hoja" onchange="this.form.submit()">
+                {% for h in hojas %}<option value="{{ h }}" {{ 'selected' if h == hoja }}>{{ h }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <input type="hidden" name="cabecera" value="0">
+        <label class="check" style="margin:0;">
+            <input type="checkbox" name="cabecera" value="1" {{ 'checked' if cabecera }} onchange="this.form.submit()">
+            La primera fila contiene los nombres de las columnas (se ignora al importar)
+        </label>
+        <noscript><button type="submit" class="btn sec sm">Actualizar</button></noscript>
+    </form>
+</section>
+
+<form method="post" action="/socios/importar/{{ token }}">
+    <input type="hidden" name="hoja" value="{{ hoja }}">
+    <input type="hidden" name="cabecera" value="{{ '1' if cabecera else '0' }}">
+
+    <section class="card">
+        <h2>2. ¿Qué hay en cada columna?</h2>
+        <p class="hint" style="margin:0 0 12px;">Ya está rellenado lo que el programa ha deducido; corrige lo que haga falta. Puedes usar el mismo destino en varias columnas: por ejemplo dos teléfonos (el segundo pasa a Observaciones) o calle y número (se unen en la dirección).</p>
+        <div class="table-wrap">
+            <table class="tabla mapa">
+                <thead>
+                    <tr>
+                        {% for j in range(ncols) %}
+                        <th>
+                            <select name="col_{{ j }}" aria-label="Contenido de la columna {{ letras[j] }}">
+                                {% for clave, etiqueta in opciones %}
+                                <option value="{{ clave }}" {{ 'selected' if mapeo[j] == clave }}>{{ etiqueta }}</option>
+                                {% endfor %}
+                            </select>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        {% for j in range(ncols) %}
+                        <th><span class="letra">{{ letras[j] }}</span> {{ encabezados[j] }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in vista %}
+                    <tr>{% for c in fila %}<td title="{{ c }}">{{ c }}</td>{% endfor %}</tr>
+                    {% else %}
+                    <tr><td colspan="{{ ncols }}" class="vacio">No hay filas de datos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>3. Si el socio ya existe</h2>
+        <label class="check" style="margin:0 0 8px;">
+            <input type="checkbox" name="sobrescribir" value="1" {{ 'checked' if sobrescribir }}>
+            <span>Sobrescribir los datos de los socios que ya existen</span>
+        </label>
+        <p class="hint" style="margin:0 0 4px;"><b>Activado:</b> se guardan los datos del archivo y los que había hasta ahora pasan a Observaciones.</p>
+        <p class="hint" style="margin:0 0 4px;"><b>Desactivado:</b> prevalecen los datos ya registrados; del archivo solo se rellenan los campos que estén vacíos.</p>
+        <p class="hint" style="margin:0;">Un socio ya existe si coincide su Nº de socio (o, si el archivo no lo trae, su DNI). Los socios nuevos sin DNI se guardan con {{ DNI_GENERICO }}.</p>
+    </section>
+
+    <div class="form-actions" style="border:0;">
+        <a class="btn sec" href="/socios">Cancelar</a>
+        <button type="submit" name="accion" value="comprobar" class="btn sec">Comprobar sin guardar</button>
+        <button type="submit" name="accion" value="importar" class="btn" data-confirm="Se van a guardar los cambios en la base de datos (antes se hace una copia automática). ¿Continuar?">Importar</button>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Socio #{{ socio.num_socio }} · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<a class="back" href="/socios">← Volver al listado</a>
+
+<div class="page-head">
+    <div>
+        <h1>{{ socio.nombre }} {{ socio.apellidos }}</h1>
+        <p>Socio #{{ socio.num_socio }}, alta el {{ socio.fecha_alta|fecha }}</p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="/cuotas/pago?socio_id={{ socio.num_socio }}">Registrar pago</a>
+        <a class="btn sec" href="/socios/{{ socio.num_socio }}/editar">Editar</a>
+        {% if socio.estado == 'Baja (manual)' %}
+        <form class="inline" method="post" action="/socios/{{ socio.num_socio }}/reactivar" data-confirm="¿Reactivar a este socio? Recuperará el estado que le corresponda según su último pago.">
+            <button class="btn sec" type="submit">Reactivar</button>
+        </form>
+        {% else %}
+        <form class="inline" method="post" action="/socios/{{ socio.num_socio }}/baja" data-confirm="¿Dar de baja manualmente a este socio?">
+            <button class="btn warn" type="submit">Dar de baja</button>
+        </form>
+        {% endif %}
+        {% if user.rol == 'admin' and not cuotas %}
+        <form class="inline" method="post" action="/socios/{{ socio.num_socio }}/eliminar" data-confirm="Se eliminará definitivamente al socio #{{ socio.num_socio }} y su historial. ¿Continuar?">
+            <button class="btn danger" type="submit">Eliminar</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid g-side">
+    <section class="card">
+        <div style="margin-bottom:16px;">{{ badge(socio.estado) }}</div>
+        <div class="dato"><small>DNI / NIE</small><p>{{ socio.dni }}{% if socio.dni == DNI_GENERICO %} <span class="badge pendiente">Provisional</span>{% endif %}</p></div>
+        <div class="dato"><small>Fecha de nacimiento</small><p>{{ (socio.fecha_nacimiento|fecha) or 'No indicada' }}</p></div>
+        <div class="dato"><small>Teléfono</small><p>{{ socio.telefono or 'No indicado' }}</p></div>
+        <div class="dato"><small>Correo electrónico</small><p>{{ socio.email or 'No indicado' }}</p></div>
+        <div class="dato"><small>Dirección</small><p>{{ socio.direccion or 'No indicada' }}</p></div>
+        {% if socio.notas %}
+        <div class="dato"><small>Notas</small><div class="nota">{{ socio.notas }}</div></div>
+        {% endif %}
+    </section>
+
+    <div>
+        <section class="card">
+            <h2>Recibos</h2>
+            {% if cuotas %}
+            <div class="table-wrap">
+                <table class="tabla">
+                    <thead><tr><th>Recibo</th><th>Fecha</th><th>Forma de pago</th><th class="num">Importe</th></tr></thead>
+                    <tbody>
+                        {% for c in cuotas %}
+                        <tr class="{{ 'anulada' if c.anulada }}" data-href="/cuotas/{{ c.id_cuota }}">
+                            <td><a href="/cuotas/{{ c.id_cuota }}">{{ c.id_cuota }}</a>
+                                {% if c.anulada %}<span class="badge anulado">Anulado</span>{% endif %}</td>
+                            <td>{{ c.fecha_pago|fecha }}</td>
+                            <td>{{ c.forma_pago }}</td>
+                            <td class="num importe">{{ c.importe|eur }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="vacio">Este socio todavía no ha pagado ninguna cuota.</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <h2>Historial</h2>
+            <div class="historial">
+                {% for h in historial %}
+                <div>
+                    <small><span>{{ h.fecha_registro|fechahora }}</span>
+                        <span>{{ h.usuario.nombre if h.usuario else 'Sistema' }}</span></small>
+                    <p><b>{{ h.accion }}</b></p>
+                    {% if h.detalles %}<p class="det">{{ h.detalles }}</p>{% endif %}
+                </div>
+                {% else %}
+                <p class="vacio">Sin movimientos.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

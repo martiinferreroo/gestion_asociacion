@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Ajustes · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Ajustes</h1>
+        <p>Datos de la asociación, apariencia, cuota y usuarios.</p>
+    </div>
+</div>
+
+<form method="post" action="/ajustes/guardar" enctype="multipart/form-data">
+    <section class="card">
+        <h2>Datos de la asociación <small>Aparecen en la cabecera de cada recibo</small></h2>
+        <div class="cols">
+            <div class="field full">
+                <label for="nombre_asociacion">Nombre <span class="req">*</span></label>
+                <input type="text" id="nombre_asociacion" name="nombre_asociacion" required value="{{ config.nombre_asociacion }}">
+            </div>
+            <div class="field">
+                <label for="cif">CIF</label>
+                <input type="text" id="cif" name="cif" value="{{ config.cif or '' }}">
+            </div>
+            <div class="field">
+                <label for="telefono">Teléfono</label>
+                <input type="text" id="telefono" name="telefono" value="{{ config.telefono or '' }}">
+            </div>
+            <div class="field">
+                <label for="email">Correo electrónico</label>
+                <input type="email" id="email" name="email" value="{{ config.email or '' }}">
+            </div>
+            <div class="field">
+                <label for="direccion">Dirección de la sede</label>
+                <input type="text" id="direccion" name="direccion" value="{{ config.direccion or '' }}">
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Apariencia <small>Logo y colores de la aplicación y de los recibos</small></h2>
+        <div class="cols">
+            <div class="field full">
+                <label for="logo">Logo</label>
+                {% if config.logo_url %}
+                <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px;">
+                    <img src="{{ config.logo_url }}" alt="Logo actual" style="height:56px; max-width:160px; object-fit:contain; border:1px solid var(--line); border-radius:8px; padding:4px; background:#fff;">
+                    <label class="check" style="margin:0;"><input type="checkbox" name="quitar_logo" value="1"> Quitar el logo actual</label>
+                </div>
+                {% endif %}
+                <input type="file" id="logo" name="logo" accept=".png,.jpg,.jpeg,.webp,.gif,.svg,image/*">
+                <p class="hint">PNG, JPG, WEBP, GIF o SVG, hasta 2 MB. Si eliges un archivo nuevo sustituye al actual.</p>
+            </div>
+            <div class="field">
+                <label for="color_cabecera">Color de la barra superior</label>
+                <div class="color-fila">
+                    <input type="color" id="color_cabecera" name="color_cabecera" value="{{ tema.cabecera }}">
+                    <span class="hint" style="margin:0;">El texto se ajusta solo para que se lea bien.</span>
+                </div>
+            </div>
+            <div class="field">
+                <label for="color_primario">Color de botones y enlaces</label>
+                <div class="color-fila">
+                    <input type="color" id="color_primario" name="color_primario" value="{{ tema.primario }}">
+                    <span class="hint" style="margin:0;">También marca la cabecera de los recibos.</span>
+                </div>
+            </div>
+            <div class="field full">
+                <label>Vista previa</label>
+                <div class="preview" id="preview">
+                    <div class="pv-bar">
+                        {% if config.logo_url %}<img src="{{ config.logo_url }}" alt="">{% endif %}
+                        <span>{{ config.nombre_asociacion }}</span>
+                    </div>
+                    <div class="pv-body">
+                        <span class="pv-btn">Registrar pago</span>
+                        <span style="color:var(--pv-p); font-weight:550;">Enlace de ejemplo</span>
+                        <button type="button" class="btn sec sm" style="margin-left:auto;" data-restablecer data-primario="{{ def_primario }}" data-cabecera="{{ def_cabecera }}">Restablecer colores</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Cuota anual</h2>
+        <div class="field" style="margin-bottom:0;">
+            <label for="importe_cuota_defecto">Importe habitual (€)</label>
+            <input type="number" id="importe_cuota_defecto" name="importe_cuota_defecto" step="0.01" min="0.01" required value="{{ '%.2f'|format(config.importe_cuota_defecto or 10) }}" style="max-width:180px;">
+            <p class="hint">Se propone automáticamente al registrar un pago. Se puede cambiar en cada pago.</p>
+        </div>
+    </section>
+
+    <div class="form-actions" style="border:0; margin-bottom:24px;">
+        <button type="submit" class="btn">Guardar ajustes</button>
+    </div>
+</form>
+
+<section class="card" id="usuarios">
+    <div class="page-head" style="margin-bottom:10px;">
+        <h2>Usuarios</h2>
+        <a class="btn sm" href="/usuarios/nuevo">Nuevo usuario</a>
+    </div>
+    <div class="table-wrap">
+        <table class="tabla">
+            <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td><b>{{ u.nombre }}</b></td>
+                    <td>{{ u.username }}</td>
+                    <td><span class="badge {{ 'admin' if u.rol == 'admin' }}">{{ 'Administrador' if u.rol == 'admin' else 'Gestor' }}</span></td>
+                    <td>{% if u.activo %}<span class="badge al-dia">Activo</span>{% else %}<span class="badge anulado">Desactivado</span>{% endif %}</td>
+                    <td class="num">
+                        <a class="btn sec sm" href="/usuarios/{{ u.id }}/password">Cambiar contraseña</a>
+                        {% if u.id != user.id %}
+                        <form class="inline" method="post" action="/usuarios/{{ u.id }}/estado" data-confirm="{{ ('¿Desactivar' if u.activo else '¿Activar') ~ ' al usuario ' ~ u.username ~ '?' }}">
+                            <button type="submit" class="btn sm {{ 'danger' if u.activo else 'sec' }}">{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Copia de seguridad</h2>
+    <p style="margin:0 0 14px; color:var(--muted);">Descarga una copia completa de la base de datos (socios, pagos e historial). Guárdala fuera de este ordenador.</p>
+    <a class="btn sec" href="/ajustes/copia-seguridad">Descargar copia</a>
+</section>
+{% endblock %}

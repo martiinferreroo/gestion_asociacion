@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ config.nombre_asociacion }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('style.css') }}">
+    <style>
+        :root {
+            --primary: {{ tema.primario }};
+            --primary-text: {{ tema.primario_texto }};
+            --header: {{ tema.cabecera }};
+            --header-text: {{ tema.cabecera_texto }};
+        }
+    </style>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block header %}
+{% if user %}
+{% set ruta = request.url.path %}
+<header class="topbar">
+    <div class="topbar-in">
+        <a class="brand" href="/">
+            {% if config.logo_url %}<img src="{{ config.logo_url }}" alt="">{% endif %}
+            <span>{{ config.nombre_asociacion }}</span>
+        </a>
+        <nav class="nav" aria-label="Principal">
+            <a href="/" class="{{ 'activo' if ruta == '/' }}">Inicio</a>
+            <a href="/socios" class="{{ 'activo' if ruta.startswith('/socios') }}">Socios</a>
+            <a href="/cuotas" class="{{ 'activo' if ruta.startswith('/cuotas') }}">Cuotas y pagos</a>
+            {% if user.rol == 'admin' %}
+            <a href="/ajustes" class="{{ 'activo' if ruta.startswith('/ajustes') or ruta.startswith('/usuarios') }}">Ajustes</a>
+            {% endif %}
+        </nav>
+        <div class="usuario">
+            <span>{{ user.nombre }}</span>
+            <a href="/usuarios/{{ user.id }}/password">Contraseña</a>
+            <form action="/logout" method="post"><button type="submit">Salir</button></form>
+        </div>
+    </div>
+</header>
+{% endif %}
+{% endblock %}
+
+<main class="page">
+    {% set aviso_ok = request.query_params.get('ok') %}
+    {% set aviso_error = request.query_params.get('error') %}
+    {% if aviso_ok %}<div class="flash ok" role="status">{{ aviso_ok }}</div>{% endif %}
+    {% if aviso_error %}<div class="flash error" role="alert">{{ aviso_error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+</main>
+<script src="{{ asset('app.js') }}"></script>
+</body>
+</html>

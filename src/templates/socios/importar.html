@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Importar socios · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="form-narrow">
+    <a class="back" href="/socios">← Volver a socios</a>
+    <div class="card">
+        <h1 style="margin-bottom:8px;">Importar socios</h1>
+        <p style="color:var(--muted); margin:0 0 18px;">Sube un Excel (.xlsx) o un CSV con tus socios. En el siguiente paso comprobarás qué hay en cada columna; el programa ya intenta deducirlo.</p>
+
+        {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+
+        <form method="post" action="/socios/importar" enctype="multipart/form-data">
+            <div class="field">
+                <label for="archivo">Archivo</label>
+                <input type="file" id="archivo" name="archivo" accept=".xlsx,.xlsm,.csv" required>
+                <p class="hint">Hasta 5 MB y 5000 filas. Los .xls antiguos hay que guardarlos antes como .xlsx.</p>
+            </div>
+            <div class="form-actions">
+                <a class="btn sec" href="/socios">Cancelar</a>
+                <button type="submit" class="btn">Continuar</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Qué arregla solo</h2>
+        <ul style="margin:0; padding-left:20px; color:var(--muted); font-size:.92rem; display:grid; gap:4px;">
+            <li>Nombres en mayúsculas o minúsculas, espacios de más y nombre y apellidos en una sola columna.</li>
+            <li>Fechas en casi cualquier formato, incluidas las de Excel.</li>
+            <li>DNI con guiones o espacios; si falta la letra, la calcula.</li>
+            <li>Teléfonos guardados como número y varios teléfonos o correos en una celda.</li>
+            <li>Los datos que no encajan no se pierden: quedan anotados en Observaciones.</li>
+            <li>Los socios sin DNI se guardan con el provisional {{ DNI_GENERICO }}.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

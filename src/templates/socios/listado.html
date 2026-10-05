@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_macros.html" import badge %}
+{% block title %}Socios · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Socios</h1>
+        <p><span data-contador>{{ socios|length }} de {{ socios|length }}</span></p>
+    </div>
+    <div class="actions">
+        <a class="btn" href="/socios/nuevo">Nuevo socio</a>
+        <a class="btn sec" href="/cuotas/pago">Registrar pago</a>
+        {% if user.rol == 'admin' %}<a class="btn sec" href="/socios/importar">Importar desde Excel</a>
+        <a class="btn sec" href="/socios/exportar">Exportar a Excel</a>{% endif %}
+    </div>
+</div>
+
+<div class="card" style="padding:0;">
+    <div style="padding:16px 16px 0;">
+        <input type="search" class="buscador" data-filter="#tabla" placeholder="Buscar por número, nombre, DNI o teléfono" aria-label="Buscar socios" style="width:100%; padding:9px 11px; border:1px solid #c5cdd7; border-radius:8px; font:inherit;">
+    </div>
+    <div class="table-wrap">
+        <table class="tabla" id="tabla">
+            <thead>
+                <tr>
+                    <th data-sort="num">Nº</th>
+                    <th data-sort="texto">Nombre y apellidos</th>
+                    <th data-sort="texto">DNI / NIE</th>
+                    <th>Teléfono</th>
+                    <th data-sort="texto">Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in socios %}
+                <tr data-href="/socios/{{ s.num_socio }}">
+                    <td data-v="{{ s.num_socio }}"><a href="/socios/{{ s.num_socio }}"><b>#{{ s.num_socio }}</b></a></td>
+                    <td>{{ s.nombre }} {{ s.apellidos }}</td>
+                    <td>{{ s.dni }}</td>
+                    <td>{{ s.telefono or '–' }}</td>
+                    <td>{{ badge(s.estado) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="vacio">Aún no hay socios. <a href="/socios/nuevo">Registra el primero</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

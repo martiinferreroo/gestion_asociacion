@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Registrar pago · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="form-narrow">
+    <a class="back" href="/cuotas">← Volver a cuotas y pagos</a>
+    <div class="card">
+        <h1 style="margin-bottom:18px;">Registrar pago de cuota</h1>
+
+        {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+
+        <form method="post" action="/cuotas/pago">
+            <div class="field">
+                <label for="num_socio">Socio <span class="req">*</span></label>
+                <select id="num_socio" name="num_socio" required>
+                    <option value="">Selecciona un socio</option>
+                    {% for s in socios %}
+                    <option value="{{ s.num_socio }}" {{ 'selected' if seleccionado == s.num_socio }}>
+                        #{{ s.num_socio }} {{ s.nombre }} {{ s.apellidos }} ({{ s.dni }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="cols">
+                <div class="field">
+                    <label for="fecha_pago">Fecha y hora del pago <span class="req">*</span></label>
+                    <input type="datetime-local" id="fecha_pago" name="fecha_pago" value="{{ fecha }}" required>
+                </div>
+                <div class="field">
+                    <label for="forma_pago">Forma de pago <span class="req">*</span></label>
+                    <select id="forma_pago" name="forma_pago" required>
+                        {% for f in formas %}
+                        <option value="{{ f }}" {{ 'selected' if f == forma }}>{{ f }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="importe">Importe (€)</label>
+                <input type="number" id="importe" name="importe" step="0.01" min="0.01" value="{{ '%.2f'|format(importe) }}" style="max-width:180px;">
+                <p class="hint">Se propone la cuota anual definida en ajustes ({{ config.importe_cuota_defecto|eur }}). Puedes cambiarla para este pago.</p>
+            </div>
+            <div class="form-actions">
+                <a class="btn sec" href="/cuotas">Cancelar</a>
+                <button type="submit" class="btn">Registrar y ver recibo</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

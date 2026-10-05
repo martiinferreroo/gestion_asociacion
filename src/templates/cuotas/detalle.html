@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Recibo {{ cuota.id_cuota }} · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="no-print" style="max-width:var(--ancho-recibo); margin:0 auto 16px;">
+    <a class="back" href="/cuotas" style="margin-bottom:10px;">← Volver a cuotas y pagos</a>
+    <div class="actions">
+        <button type="button" class="btn" onclick="window.print()">Imprimir recibo</button>
+        <a class="btn sec" href="/socios/{{ cuota.socio.num_socio }}">Ver ficha del socio</a>
+    </div>
+</div>
+
+<article class="recibo">
+    {% if cuota.anulada %}<div class="sello">ANULADO</div>{% endif %}
+
+    <header class="recibo-cab">
+        <div class="recibo-emisor">
+            {% if config.logo_url %}<img src="{{ config.logo_url }}" alt="Logotipo">{% endif %}
+            <div>
+                <h1>{{ config.nombre_asociacion }}</h1>
+                {% if config.cif %}<p>CIF {{ config.cif }}</p>{% endif %}
+                {% if config.direccion %}<p>{{ config.direccion }}</p>{% endif %}
+                {% if config.telefono %}<p>Tel. {{ config.telefono }}</p>{% endif %}
+                {% if config.email %}<p>{{ config.email }}</p>{% endif %}
+            </div>
+        </div>
+        <div class="recibo-num">
+            <small>Recibo nº</small>
+            <b>{{ cuota.id_cuota }}</b>
+            <small style="margin-top:6px;">{{ cuota.fecha_pago|fecha }}</small>
+        </div>
+    </header>
+
+    <p class="recibo-texto">
+        Recibimos de <b>{{ cuota.socio.nombre }} {{ cuota.socio.apellidos }}</b>,
+        con DNI/NIE <b>{{ cuota.socio.dni }}</b>{% if cuota.socio.direccion %} y domicilio en {{ cuota.socio.direccion }}{% endif %},
+        la cantidad de <b>{{ cuota.importe|eur }}</b> en concepto de <b>CUOTA ANUAL</b> de socio
+        correspondiente al año {{ cuota.fecha_pago.year }}.
+    </p>
+
+    <div class="recibo-datos">
+        <div><small>Socio</small><b>Nº {{ cuota.socio.num_socio }}</b></div>
+        <div><small>Fecha y hora del pago</small><b>{{ cuota.fecha_pago|fechahora }}</b></div>
+        <div><small>Forma de pago</small><b>{{ cuota.forma_pago }}</b></div>
+    </div>
+
+    <div class="recibo-importe">
+        <span>Importe recibido</span>
+        <b>{{ cuota.importe|eur }}</b>
+    </div>
+
+    {% if cuota.anulada %}
+    <p style="font-size:.85rem; color:#93251b; margin:14px 0 0;">
+        Recibo anulado el {{ cuota.fecha_anulacion|fechahora }}. Motivo: {{ cuota.motivo_anulacion }}
+    </p>
+    {% endif %}
+
+    <div class="recibo-firma"><div>Firma y sello de la asociación</div></div>
+</article>
+
+{% if not cuota.anulada %}
+<details class="anular-box no-print card" style="padding:14px 18px;">
+    <summary>Anular este recibo</summary>
+    <form method="post" action="/cuotas/{{ cuota.id_cuota }}/anular" data-confirm="Anular el recibo {{ cuota.id_cuota }}? El recibo se conserva marcado como anulado y el socio recalcula su estado." style="margin-top:14px;">
+        <div class="field">
+            <label for="motivo">Motivo de la anulación <span class="req">*</span></label>
+            <input type="text" id="motivo" name="motivo" required placeholder="Por ejemplo: importe mal introducido">
+            <p class="hint">El número de recibo no se elimina ni se reutiliza, para que la numeración siga siendo correlativa.</p>
+        </div>
+        <button type="submit" class="btn danger">Anular recibo</button>
+    </form>
+</details>
+{% endif %}
+{% endblock %}

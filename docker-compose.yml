@@ -1,0 +1,33 @@
+services:
+  asociacion:
+    # Por defecto se compila aquí mismo (./desplegar.sh). Si defines
+    # ASOCIACION_IMAGE en un archivo .env (por ejemplo ghcr.io/usuario/repo:latest)
+    # se puede descargar ya hecha con:  docker compose pull && docker compose up -d
+    image: ${ASOCIACION_IMAGE:-asociacion:local}
+    build: .
+    container_name: asociacion
+    restart: unless-stopped        # arranca con el servidor y se reinicia si falla
+    environment:
+      TZ: Europe/Madrid
+      ASOCIACION_COOKIE_SECURE: "1"   # la web se sirve por HTTPS a través de NPM
+      FORWARDED_ALLOW_IPS: "*"        # confía en las cabeceras del proxy (ver README)
+    volumes:
+      - ./data:/data               # base de datos, clave de sesión, logo y copias
+
+    # --- Cómo llega Nginx Proxy Manager a la aplicación: elige UNA opción ---
+
+    # Opción A (recomendada): NPM está en Docker en esta misma máquina.
+    # Conecta ambos a la misma red y en NPM apunta a  asociacion:8000
+    # (el nombre de la red de NPM lo ves con:  docker network ls)
+    # networks: [proxy]
+
+    # Opción B: NPM está en otra máquina o fuera de Docker.
+    # En NPM apunta a  IP_DE_ESTE_SERVIDOR:8000  y cierra ese puerto en el
+    # firewall para que solo pueda alcanzarlo la IP de NPM.
+    ports:
+      - "8000:8000"
+
+# networks:
+#   proxy:
+#     external: true
+#     name: npm_default            # sustituye por el nombre real de la red de NPM

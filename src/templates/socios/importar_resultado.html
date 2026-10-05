@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Importar socios · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ 'Importación completada' if guardado else 'Comprobación de la importación' }}</h1>
+        <p>{{ informe.leidas }} filas leídas</p>
+    </div>
+</div>
+
+{% if guardado %}
+<div class="flash ok" role="status">Los datos se han guardado. Antes de importar se hizo una copia automática de la base de datos en la carpeta «copias».</div>
+{% else %}
+<div class="flash ok" role="status">Esto es una simulación: todavía no se ha guardado nada.</div>
+{% endif %}
+
+<div class="grid g4" style="margin-bottom:20px;">
+    <div class="stat principal"><b>{{ informe.nuevos }}</b><span>Socios nuevos</span></div>
+    <div class="stat"><b>{{ informe.actualizados }}</b><span>Socios actualizados</span></div>
+    <div class="stat"><b>{{ informe.sin_cambios }}</b><span>Sin cambios</span></div>
+    <div class="stat"><b>{{ informe.omitidos }}</b><span>Filas omitidas</span></div>
+</div>
+
+{% for g in informe.globales %}
+<div class="nota" style="margin-bottom:12px;">{{ g }}</div>
+{% endfor %}
+
+{% if mensajes %}
+<section class="card">
+    <h2>Detalles <small>{{ informe.mensajes|length }} avisos{% if informe.mensajes|length > mensajes|length %}, se muestran los {{ mensajes|length }} primeros{% endif %}</small></h2>
+    <div class="table-wrap">
+        <table class="tabla">
+            <thead><tr><th>Fila</th><th>Tipo</th><th>Detalle</th></tr></thead>
+            <tbody>
+                {% for m in mensajes %}
+                <tr>
+                    <td>{{ m.fila }}</td>
+                    <td><span class="badge {{ {'aviso': 'pendiente', 'error': 'anulado', 'info': 'inactivo'}[m.nivel] }}">{{ {'aviso': 'Aviso', 'error': 'Omitida', 'info': 'Información'}[m.nivel] }}</span></td>
+                    <td>{{ m.texto }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if guardado %}
+<div class="actions"><a class="btn" href="/socios">Ver socios</a></div>
+{% else %}
+<div class="actions" style="justify-content:flex-end;">
+    <form class="inline" method="post" action="/socios/importar/{{ token }}">
+        {% for nombre, valor in campos %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+        <button type="submit" name="accion" value="ajustar" class="btn sec">Volver a ajustar</button>
+    </form>
+    <form class="inline" method="post" action="/socios/importar/{{ token }}" data-confirm="Se van a guardar los cambios en la base de datos (antes se hace una copia automática). ¿Continuar?">
+        {% for nombre, valor in campos %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+        <button type="submit" name="accion" value="importar" class="btn">Importar ahora</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

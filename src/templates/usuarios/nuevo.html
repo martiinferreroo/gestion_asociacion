@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Nuevo usuario · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="form-narrow">
+    <a class="back" href="/ajustes#usuarios">← Volver a ajustes</a>
+    <div class="card">
+        <h1 style="margin-bottom:18px;">Nuevo usuario</h1>
+        {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+        <form method="post" action="/usuarios/nuevo">
+            <div class="cols">
+                <div class="field">
+                    <label for="nombre">Nombre <span class="req">*</span></label>
+                    <input type="text" id="nombre" name="nombre" required value="{{ datos.nombre or '' }}">
+                </div>
+                <div class="field">
+                    <label for="username">Usuario <span class="req">*</span></label>
+                    <input type="text" id="username" name="username" required autocomplete="off" value="{{ datos.username or '' }}">
+                </div>
+                <div class="field">
+                    <label for="password">Contraseña <span class="req">*</span></label>
+                    <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+                    <p class="hint">Mínimo 8 caracteres.</p>
+                </div>
+                <div class="field">
+                    <label for="confirmacion">Repite la contraseña <span class="req">*</span></label>
+                    <input type="password" id="confirmacion" name="confirmacion" required autocomplete="new-password">
+                </div>
+                <div class="field full">
+                    <label for="rol">Rol</label>
+                    <select id="rol" name="rol">
+                        <option value="gestor" {{ 'selected' if datos.rol != 'admin' }}>Gestor: socios y cuotas</option>
+                        <option value="admin" {{ 'selected' if datos.rol == 'admin' }}>Administrador: además, ajustes y usuarios</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <a class="btn sec" href="/ajustes#usuarios">Cancelar</a>
+                <button type="submit" class="btn">Crear usuario</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
