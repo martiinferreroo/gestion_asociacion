@@ -233,3 +233,13 @@ body.acceso .page { width: 100%; max-width: 400px; padding: 24px 20px; }
 .mapa td { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .letra { display: inline-block; min-width: 22px; text-align: center; background: var(--soft); color: var(--primary); border-radius: 5px; font-weight: 700; margin-right: 4px; }
 @media screen and (max-width: 860px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Agenda ---------- */
+.agenda-nav { align-items: center; }
+.nota-agenda { border-left: 3px solid var(--primary); padding: 4px 0 4px 14px; margin-bottom: 16px; }
+.nota-agenda-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; }
+.nota-agenda-cab b { color: var(--ink); margin-right: 6px; }
+.nota-agenda p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.agenda-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.agenda-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 280px); }
+@media screen and (max-width: 860px) { .agenda-grid { grid-template-columns: 1fr; } }

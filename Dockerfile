@@ -7,17 +7,18 @@ RUN apt-get update \
 
 ENV TZ=Europe/Madrid \
     PYTHONUNBUFFERED=1 \
-    ASOCIACION_DATA=/data
+    ASOCIACION_DATA=/data \
+    ASOCIACION_BACKUPS=/backups
 
 WORKDIR /app
 COPY src/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ .
 
-# Usuario sin privilegios; /data es donde vive todo lo que hay que conservar
-RUN useradd --system --uid 1000 app && mkdir /data && chown app /data
+# Usuario sin privilegios. /data: base de datos, clave y logo. /backups: copias automáticas
+RUN useradd --system --uid 1000 app && mkdir /data /backups && chown app /data /backups
 USER app
-VOLUME /data
+VOLUME ["/data", "/backups"]
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \

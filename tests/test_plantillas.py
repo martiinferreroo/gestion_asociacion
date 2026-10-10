@@ -16,6 +16,8 @@ def entorno():
     env.filters["fecha"] = formatos.fecha
     env.filters["fechahora"] = formatos.fechahora
     env.filters["eur"] = formatos.euros
+    env.filters["fecha_larga"] = formatos.fecha_larga
+    env.filters["tamano"] = formatos.tamano
     env.globals["asset"] = lambda nombre: f"/static/{nombre}?v=1"
     env.globals["DNI_GENERICO"] = importar.DNI_GENERICO
     return env
@@ -109,6 +111,145 @@ class Recibo(unittest.TestCase):
         html = entorno().get_template("cuotas/detalle.html").render(**contexto())
         for esperado in ("Asociación de Vecinos de Carnoedo", "CIF G12345678", "/static/uploads/logo_1.png"):
             self.assertIn(esperado, html)
+
+
+class FormatosNuevos(unittest.TestCase):
+    def test_fecha_larga_en_espanol(self):
+        self.assertEqual(formatos.fecha_larga(date(2026, 9, 29)), "Martes, 29 de septiembre de 2026")
+        self.assertEqual(formatos.fecha_larga(datetime(2026, 1, 1, 10, 0)), "Jueves, 1 de enero de 2026")
+        self.assertEqual(formatos.fecha_larga(None), "")
+
+    def test_tamano(self):
+        self.assertEqual(formatos.tamano(845), "845 B")
+        self.assertEqual(formatos.tamano(12595), "12,3 KB")
+        self.assertEqual(formatos.tamano(5 * 1024 * 1024), "5,0 MB")
+        self.assertEqual(formatos.tamano(None), "0 B")
+
+
+def nota(id_, texto, hora, usuario_id=1, nombre="Ana", dia=date(2026, 9, 29)):
+    return NS(id=id_, texto=texto, creada=datetime(2026, 9, 29, *hora), usuario_id=usuario_id,
+              usuario=NS(nombre=nombre) if nombre else None, fecha=dia)
+
+
+def contexto_agenda(user_id=1, rol="admin", notas=None, dia=date(2026, 9, 29)):
+    ctx = contexto()
+    ctx["user"] = NS(id=user_id, nombre="Ana", rol=rol)
+    ctx["request"] = NS(url=NS(path="/agenda"), query_params={})
+    ctx.update(
+        dia=dia, notas=notas if notas is not None else [], es_hoy=False,
+        anterior=date(2026, 9, 28), siguiente=date(2026, 9, 30), hoy=date(2026, 9, 30),
+        recientes=[(date(2026, 9, 29), 2), (date(2026, 9, 25), 1)], max_nota=2000,
+    )
+    return ctx
+
+
+class Agenda(unittest.TestCase):
+    def render(self, **kw):
+        return entorno().get_template("agenda.html").render(**contexto_agenda(**kw))
+
+    def test_muestra_fecha_notas_autor_y_hora(self):
+        html = self.render(notas=[nota(1, "Llamar al fontanero", (9, 30), nombre="Luis", usuario_id=2)])
+        for esperado in ("Martes, 29 de septiembre de 2026", "Llamar al fontanero", "Luis", "09:30"):
+            self.assertIn(esperado, html)
+
+    def test_dia_sin_notas_y_lista_de_dias(self):
+        html = self.render()
+        self.assertIn("Nada anotado este día.", html)
+        self.assertIn("29/09/2026", html)
+        self.assertIn("2 notas", html)
+        self.assertIn("1 nota</span>", html)
+
+    def test_enlaces_de_navegacion_y_formulario(self):
+        html = self.render()
+        self.assertIn('href="/agenda?fecha=2026-09-28"', html)
+        self.assertIn('href="/agenda?fecha=2026-09-30"', html)
+        self.assertIn('name="fecha" value="2026-09-29"', html)
+        self.assertIn('action="/agenda"', html)
+
+    def test_solo_el_autor_o_un_admin_ven_el_boton_de_eliminar(self):
+        n = [nota(7, "x", (9, 0), usuario_id=2)]
+        self.assertIn("/agenda/7/eliminar", self.render(notas=n, user_id=1, rol="admin"))
+        self.assertIn("/agenda/7/eliminar", self.render(notas=n, user_id=2, rol="gestor"))
+        self.assertNotIn("/agenda/7/eliminar", self.render(notas=n, user_id=3, rol="gestor"))
+
+    def test_nota_escrita_otro_dia_muestra_la_fecha_completa(self):
+        n = [nota(1, "x", (9, 0), dia=date(2026, 9, 20))]
+        self.assertIn("29/09/2026 09:00", self.render(notas=n, dia=date(2026, 9, 20)))
+
+    def test_el_texto_se_escapa_y_se_conservan_saltos(self):
+        html = self.render(notas=[nota(1, "<script>alert(1)</script>", (9, 0))])
+        self.assertNotIn("<script>alert(1)</script>", html)
+
+    def test_menu_tiene_enlace_a_la_agenda(self):
+        self.assertIn('href="/agenda"', self.render())
+
+
+def contexto_ajustes(**cfg):
+    ctx = contexto(config=dict(
+        importe_cuota_defecto=10.0, color_primario=None, color_cabecera=None,
+        backup_activo=1, backup_frecuencia="semanal", backup_cada_dias=3, backup_dia_semana=2,
+        backup_dia_mes=15, backup_hora="03:30", backup_conservar=10,
+        backup_ultimo=datetime(2026, 9, 29, 3, 30), backup_ultimo_estado="Correcta: asociacion_2026-09-29_033000.db",
+        **cfg,
+    ))
+    ctx["request"] = NS(url=NS(path="/ajustes"), query_params={})
+    ctx.update(
+        usuarios=[NS(id=1, nombre="Ana", username="ana", rol="admin", activo=1)],
+        def_primario="#0f766e", def_cabecera="#17343f",
+        frecuencias=[("diaria", "Todos los días"), ("cada_n_dias", "Cada varios días"),
+                     ("semanal", "Una vez a la semana"), ("mensual", "Una vez al mes")],
+        dias_semana=["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+        proxima_copia=datetime(2026, 10, 7, 3, 30), descripcion_copia="los miércoles a las 03:30",
+        lista_copias=[{"nombre": "asociacion_2026-09-29_033000.db", "bytes": 20480, "fecha": datetime(2026, 9, 29, 3, 30)}],
+        carpeta_copias="/backups",
+    )
+    return ctx
+
+
+class AjustesCopias(unittest.TestCase):
+    def render(self, **cfg):
+        return entorno().get_template("ajustes.html").render(**contexto_ajustes(**cfg))
+
+    def test_muestra_la_configuracion_guardada(self):
+        html = self.render()
+        self.assertIn('name="backup_activo" value="1" checked', html)
+        self.assertIn('<option value="semanal" selected>', html)
+        self.assertIn('<option value="2" selected>Miércoles</option>', html)
+        self.assertIn('name="backup_hora" value="03:30"', html)
+        self.assertIn('name="backup_conservar" min="1" max="365" value="10"', html)
+
+    def test_muestra_proxima_y_ultima_copia(self):
+        html = self.render()
+        self.assertIn("los miércoles a las 03:30", html)
+        self.assertIn("07/10/2026 03:30", html)
+        self.assertIn("Correcta: asociacion_2026-09-29_033000.db", html)
+
+    def test_lista_de_copias_con_descarga_y_boton_de_copia_ahora(self):
+        html = self.render()
+        self.assertIn('href="/ajustes/backups/asociacion_2026-09-29_033000.db"', html)
+        self.assertIn("20,0 KB", html)
+        self.assertIn('action="/ajustes/backups/ahora"', html)
+        self.assertIn("/backups", html)
+
+    def test_desactivadas(self):
+        ctx = contexto_ajustes()
+        ctx["config"].backup_activo = 0
+        ctx["proxima_copia"] = None
+        html = entorno().get_template("ajustes.html").render(**ctx)
+        self.assertIn("desactivadas", html)
+        self.assertNotIn('name="backup_activo" value="1" checked', html)
+
+    def test_error_de_la_ultima_copia_se_destaca(self):
+        ctx = contexto_ajustes()
+        ctx["config"].backup_ultimo_estado = "Error: disco lleno"
+        html = entorno().get_template("ajustes.html").render(**ctx)
+        self.assertIn("Error: disco lleno", html)
+        self.assertIn("color:var(--danger)", html)
+
+    def test_sin_copias_guardadas(self):
+        ctx = contexto_ajustes()
+        ctx["lista_copias"] = []
+        self.assertIn("Todavía no hay copias guardadas.", entorno().get_template("ajustes.html").render(**ctx))
 
 
 if __name__ == "__main__":

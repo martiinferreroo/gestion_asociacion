@@ -1,5 +1,6 @@
 # Datos de la asociación: NUNCA al repositorio (datos personales)
 data/
+backups/
 src/*.db
 src/.secret_key
 src/copias/

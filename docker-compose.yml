@@ -12,7 +12,10 @@ services:
       ASOCIACION_COOKIE_SECURE: "1"   # la web se sirve por HTTPS a través de NPM
       FORWARDED_ALLOW_IPS: "*"        # confía en las cabeceras del proxy (ver README)
     volumes:
-      - ./data:/data               # base de datos, clave de sesión, logo y copias
+      - ./data:/data               # base de datos, clave de sesión y logo
+      - ./backups:/backups         # copias automáticas (se programan en Ajustes)
+      # Para guardarlas en otro disco o en un NAS montado, cambia la ruta de la
+      # izquierda, p. ej.:  - /mnt/nas/asociacion:/backups
 
     # --- Cómo llega Nginx Proxy Manager a la aplicación: elige UNA opción ---
 

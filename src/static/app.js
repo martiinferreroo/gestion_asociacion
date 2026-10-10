@@ -81,3 +81,14 @@ if (preview) {
 if (document.body.hasAttribute("data-autoprint")) {
   window.addEventListener("load", () => setTimeout(() => window.print(), 300));
 }
+
+// Ajustes: mostrar solo los campos que corresponden a la frecuencia de las copias
+const frecuenciaCopias = document.querySelector("[name=backup_frecuencia]");
+if (frecuenciaCopias) {
+  const actualizar = () =>
+    document.querySelectorAll("[data-solo]").forEach((el) => {
+      el.hidden = el.dataset.solo !== frecuenciaCopias.value;
+    });
+  frecuenciaCopias.addEventListener("change", actualizar);
+  actualizar();
+}

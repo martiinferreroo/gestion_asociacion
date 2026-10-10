@@ -89,6 +89,63 @@
         </div>
     </section>
 
+    <section class="card">
+        <h2>Copias de seguridad automáticas <small>Solo de la base de datos: socios, pagos, agenda y usuarios</small></h2>
+        <label class="check" style="margin:0 0 16px;">
+            <input type="checkbox" name="backup_activo" value="1" {{ 'checked' if config.backup_activo }}>
+            Hacer copias automáticas de la base de datos
+        </label>
+        <div class="cols">
+            <div class="field">
+                <label for="backup_frecuencia">Frecuencia</label>
+                <select id="backup_frecuencia" name="backup_frecuencia">
+                    {% for clave, etiqueta in frecuencias %}
+                    <option value="{{ clave }}" {{ 'selected' if config.backup_frecuencia == clave }}>{{ etiqueta }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="backup_hora">Hora</label>
+                <input type="time" id="backup_hora" name="backup_hora" value="{{ config.backup_hora or '03:00' }}" required style="max-width:160px;">
+                <p class="hint">Por ejemplo 03:00 para hacerla de madrugada.</p>
+            </div>
+            <div class="field" data-solo="cada_n_dias">
+                <label for="backup_cada_dias">Cada cuántos días</label>
+                <input type="number" id="backup_cada_dias" name="backup_cada_dias" min="1" max="365" value="{{ config.backup_cada_dias or 1 }}" style="max-width:120px;">
+            </div>
+            <div class="field" data-solo="semanal">
+                <label for="backup_dia_semana">Día de la semana</label>
+                <select id="backup_dia_semana" name="backup_dia_semana">
+                    {% for dia in dias_semana %}
+                    <option value="{{ loop.index0 }}" {{ 'selected' if (config.backup_dia_semana or 0) == loop.index0 }}>{{ dia|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field" data-solo="mensual">
+                <label for="backup_dia_mes">Día del mes</label>
+                <input type="number" id="backup_dia_mes" name="backup_dia_mes" min="1" max="31" value="{{ config.backup_dia_mes or 1 }}" style="max-width:120px;">
+                <p class="hint">En los meses más cortos se hace el último día.</p>
+            </div>
+            <div class="field">
+                <label for="backup_conservar">Copias que se conservan</label>
+                <input type="number" id="backup_conservar" name="backup_conservar" min="1" max="365" value="{{ config.backup_conservar or 14 }}" style="max-width:120px;">
+                <p class="hint">Cuando hay más, se borran solas las más antiguas.</p>
+            </div>
+        </div>
+        <p class="hint" style="margin:0;">
+            {% if config.backup_activo %}
+            Programada {{ descripcion_copia }}. Próxima copia: <b>{{ proxima_copia|fechahora }}</b>.
+            {% else %}
+            Las copias automáticas están desactivadas.
+            {% endif %}
+            {% if config.backup_ultimo_estado %}
+            <br>Última automática: {{ config.backup_ultimo|fechahora }}.
+            <span style="{{ 'color:var(--danger);' if config.backup_ultimo_estado.startswith('Error') }}">{{ config.backup_ultimo_estado }}</span>
+            {% endif %}
+            <br>Si el servidor está apagado a la hora prevista, la copia se hace al volver a encenderse.
+        </p>
+    </section>
+
     <div class="form-actions" style="border:0; margin-bottom:24px;">
         <button type="submit" class="btn">Guardar ajustes</button>
     </div>
@@ -124,9 +181,33 @@
     </div>
 </section>
 
-<section class="card">
-    <h2>Copia de seguridad</h2>
-    <p style="margin:0 0 14px; color:var(--muted);">Descarga una copia completa de la base de datos (socios, pagos e historial). Guárdala fuera de este ordenador.</p>
-    <a class="btn sec" href="/ajustes/copia-seguridad">Descargar copia</a>
+<section class="card" id="copias">
+    <h2>Copias guardadas <small>Carpeta: {{ carpeta_copias }}</small></h2>
+    <p style="margin:0 0 14px; color:var(--muted);">Con Docker es la carpeta <code>backups/</code> junto a <code>data/</code>. Llévala de vez en cuando fuera del servidor.</p>
+    <div class="actions" style="margin-bottom:16px;">
+        <form class="inline" method="post" action="/ajustes/backups/ahora">
+            <button type="submit" class="btn">Hacer una copia ahora</button>
+        </form>
+        <a class="btn sec" href="/ajustes/copia-seguridad">Descargar la base de datos actual</a>
+    </div>
+    {% if lista_copias %}
+    <div class="table-wrap">
+        <table class="tabla">
+            <thead><tr><th>Archivo</th><th>Fecha</th><th class="num">Tamaño</th><th></th></tr></thead>
+            <tbody>
+                {% for c in lista_copias %}
+                <tr>
+                    <td>{{ c.nombre }}</td>
+                    <td>{{ c.fecha|fechahora }}</td>
+                    <td class="num">{{ c.bytes|tamano }}</td>
+                    <td class="num"><a class="btn sec sm" href="/ajustes/backups/{{ c.nombre }}">Descargar</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="vacio">Todavía no hay copias guardadas.</p>
+    {% endif %}
 </section>
 {% endblock %}

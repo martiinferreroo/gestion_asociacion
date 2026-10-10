@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Agenda · {{ config.nombre_asociacion }}{% endblock %}
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>Agenda diaria</h1>
+        <p>{{ dia|fecha_larga }}{% if es_hoy %} (hoy){% endif %}</p>
+    </div>
+    <div class="actions agenda-nav">
+        <a class="btn sec" href="/agenda?fecha={{ anterior.isoformat() }}" aria-label="Día anterior">← Anterior</a>
+        {% if not es_hoy %}<a class="btn sec" href="/agenda">Hoy</a>{% endif %}
+        <a class="btn sec" href="/agenda?fecha={{ siguiente.isoformat() }}" aria-label="Día siguiente">Siguiente →</a>
+        <form method="get" action="/agenda" class="inline">
+            <input type="date" name="fecha" value="{{ dia.isoformat() }}" onchange="this.form.submit()" aria-label="Ir a una fecha" style="width:auto;">
+        </form>
+    </div>
+</div>
+
+<div class="grid g-side agenda-grid">
+    <section class="card">
+        <h2>Anotaciones del día <small>{{ notas|length }}</small></h2>
+
+        {% for n in notas %}
+        <div class="nota-agenda">
+            <div class="nota-agenda-cab">
+                <span>
+                    <b>{{ n.usuario.nombre if n.usuario else 'Sistema' }}</b>
+                    {{ n.creada.strftime('%H:%M') if n.creada.date() == dia else (n.creada|fechahora) }}
+                </span>
+                {% if user.rol == 'admin' or n.usuario_id == user.id %}
+                <form class="inline" method="post" action="/agenda/{{ n.id }}/eliminar" data-confirm="¿Eliminar esta nota?">
+                    <button type="submit" class="btn danger sm">Eliminar</button>
+                </form>
+                {% endif %}
+            </div>
+            <p>{{ n.texto }}</p>
+        </div>
+        {% else %}
+        <p class="vacio">Nada anotado este día.</p>
+        {% endfor %}
+
+        <form method="post" action="/agenda" class="agenda-form">
+            <input type="hidden" name="fecha" value="{{ dia.isoformat() }}">
+            <div class="field" style="margin-bottom:10px;">
+                <label for="texto">Nueva anotación</label>
+                <textarea id="texto" name="texto" rows="3" maxlength="{{ max_nota }}" required placeholder="Anota aquí lo que quieras recordar de este día"></textarea>
+            </div>
+            <button type="submit" class="btn">Guardar nota</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Días con anotaciones</h2>
+        {% if recientes %}
+        <ul class="lista">
+            {% for fecha, cuantas in recientes %}
+            <li>
+                <a href="/agenda?fecha={{ fecha.isoformat() }}"{% if fecha == dia %} style="font-weight:700;"{% endif %}>{{ fecha|fecha }}</a>
+                <span class="badge">{{ cuantas }} {{ 'nota' if cuantas == 1 else 'notas' }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="vacio">Todavía no hay anotaciones.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

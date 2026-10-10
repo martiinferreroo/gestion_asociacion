@@ -93,3 +93,27 @@ class Configuracion(Base):
     logo_url = Column(String, nullable=True)
     color_primario = Column(String, nullable=True)  # botones y enlaces
     color_cabecera = Column(String, nullable=True)  # barra superior
+
+    # Copias de seguridad automáticas
+    backup_activo = Column(Integer, default=0)
+    backup_frecuencia = Column(String, default="diaria")  # diaria, cada_n_dias, semanal, mensual
+    backup_cada_dias = Column(Integer, default=1)
+    backup_dia_semana = Column(Integer, default=0)        # 0 = lunes
+    backup_dia_mes = Column(Integer, default=1)
+    backup_hora = Column(String, default="03:00")
+    backup_conservar = Column(Integer, default=14)        # nº de copias que se guardan
+    backup_desde = Column(DateTime, nullable=True)        # cuándo se activó o cambió el horario
+    backup_ultimo = Column(DateTime, nullable=True)       # última copia automática correcta
+    backup_ultimo_estado = Column(String, nullable=True)
+
+
+class AgendaNota(Base):
+    __tablename__ = "agenda_notas"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    fecha = Column(Date, nullable=False, index=True)      # día al que se refiere la nota
+    creada = Column(DateTime, default=datetime.now)       # cuándo se escribió
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    texto = Column(Text, nullable=False)
+
+    usuario = relationship("Usuario")

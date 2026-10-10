@@ -28,6 +28,7 @@
             <a href="/" class="{{ 'activo' if ruta == '/' }}">Inicio</a>
             <a href="/socios" class="{{ 'activo' if ruta.startswith('/socios') }}">Socios</a>
             <a href="/cuotas" class="{{ 'activo' if ruta.startswith('/cuotas') }}">Cuotas y pagos</a>
+            <a href="/agenda" class="{{ 'activo' if ruta.startswith('/agenda') }}">Agenda</a>
             {% if user.rol == 'admin' %}
             <a href="/ajustes" class="{{ 'activo' if ruta.startswith('/ajustes') or ruta.startswith('/usuarios') }}">Ajustes</a>
             {% endif %}

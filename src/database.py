@@ -12,6 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("ASOCIACION_DATA", BASE_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "asociacion.db"
+# Carpeta de las copias de seguridad automáticas. En Docker es un volumen aparte
+# (/backups), para poder llevarlo a otro disco; por defecto, data/backups.
+BACKUPS_DIR = Path(os.environ.get("ASOCIACION_BACKUPS", DATA_DIR / "backups"))
 
 engine = create_engine(
     f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False}

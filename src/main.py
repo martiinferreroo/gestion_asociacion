@@ -2,10 +2,11 @@ import os
 import re
 import sqlite3
 import tempfile
+import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -18,12 +19,13 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 import auth
+import copias
 import exportar
 import formatos
 import importar
 import migraciones
 import models
-from database import BASE_DIR, DATA_DIR, DB_PATH, SessionLocal, engine, get_db
+from database import BACKUPS_DIR, BASE_DIR, DATA_DIR, DB_PATH, SessionLocal, engine, get_db
 
 STATIC_DIR = BASE_DIR / "static"
 # Con ASOCIACION_DATA (Docker) el logo se guarda en la carpeta de datos; sin
@@ -64,6 +66,16 @@ def migrar_esquema():
         "configuracion": {
             "color_primario": "VARCHAR",
             "color_cabecera": "VARCHAR",
+            "backup_activo": "INTEGER DEFAULT 0",
+            "backup_frecuencia": "VARCHAR DEFAULT 'diaria'",
+            "backup_cada_dias": "INTEGER DEFAULT 1",
+            "backup_dia_semana": "INTEGER DEFAULT 0",
+            "backup_dia_mes": "INTEGER DEFAULT 1",
+            "backup_hora": "VARCHAR DEFAULT '03:00'",
+            "backup_conservar": "INTEGER DEFAULT 14",
+            "backup_desde": "DATETIME",
+            "backup_ultimo": "DATETIME",
+            "backup_ultimo_estado": "VARCHAR",
         },
         "cuotas": {
             "anulada": "INTEGER DEFAULT 0",
@@ -122,7 +134,11 @@ async def lifespan(_app: FastAPI):
         get_or_create_config(db)
         crear_admin_inicial(db)
         comprobar_estados_socios(db)
+    parar = threading.Event()
+    hilo = threading.Thread(target=bucle_copias, args=(parar,), daemon=True, name="copias")
+    hilo.start()
     yield
+    parar.set()
 
 
 app = FastAPI(
@@ -168,6 +184,8 @@ templates.env.globals["DNI_GENERICO"] = importar.DNI_GENERICO
 templates.env.filters["fecha"] = formatos.fecha
 templates.env.filters["fechahora"] = formatos.fechahora
 templates.env.filters["eur"] = formatos.euros
+templates.env.filters["fecha_larga"] = formatos.fecha_larga
+templates.env.filters["tamano"] = formatos.tamano
 
 
 def color_valido(valor, defecto):
@@ -1135,6 +1153,140 @@ def anular_cuota(
 
 
 # --------------------------------------------------------------------------
+# Copias de seguridad automáticas
+# --------------------------------------------------------------------------
+
+_ultimo_fallo = {"cuando": None}
+REINTENTO_TRAS_FALLO = timedelta(minutes=10)
+
+
+def programa_desde(config) -> copias.Programa:
+    return copias.Programa(
+        activo=bool(config.backup_activo),
+        frecuencia=config.backup_frecuencia or "diaria",
+        cada_dias=config.backup_cada_dias or 1,
+        dia_semana=config.backup_dia_semana or 0,
+        dia_mes=config.backup_dia_mes or 1,
+        hora=config.backup_hora or "03:00",
+        desde=config.backup_desde,
+        ultimo=config.backup_ultimo,
+    )
+
+
+def ejecutar_copia_si_toca():
+    ahora = datetime.now()
+    with SessionLocal() as db:
+        config = get_or_create_config(db)
+        if config.backup_activo and not config.backup_desde and not config.backup_ultimo:
+            config.backup_desde = ahora       # sin referencia no habría "próxima" copia
+            db.commit()
+            return
+        if not copias.toca(programa_desde(config), ahora):
+            return
+        if _ultimo_fallo["cuando"] and ahora - _ultimo_fallo["cuando"] < REINTENTO_TRAS_FALLO:
+            return
+        try:
+            destino = copias.crear_copia(DB_PATH, BACKUPS_DIR, ahora)
+            copias.podar(BACKUPS_DIR, config.backup_conservar or 14)
+            config.backup_ultimo = ahora
+            config.backup_ultimo_estado = f"Correcta: {destino.name}"
+            _ultimo_fallo["cuando"] = None
+        except Exception as e:
+            config.backup_ultimo_estado = f"Error: {e}"
+            _ultimo_fallo["cuando"] = ahora
+        db.commit()
+
+
+def bucle_copias(parar: threading.Event):
+    """Comprueba cada 30 segundos si toca hacer una copia."""
+    while not parar.wait(30):
+        try:
+            ejecutar_copia_si_toca()
+        except Exception:
+            pass    # un fallo puntual no debe parar el planificador
+
+
+# --------------------------------------------------------------------------
+# Agenda diaria
+# --------------------------------------------------------------------------
+
+MAX_NOTA = 2000
+
+
+def _fecha_agenda(valor):
+    try:
+        return date.fromisoformat(valor) if valor else date.today()
+    except ValueError:
+        return date.today()
+
+
+@app.get("/agenda")
+def agenda(
+    request: Request,
+    fecha: str = None,
+    db: Session = Depends(get_db),
+    user=Depends(usuario_actual),
+):
+    dia = _fecha_agenda(fecha)
+    notas = (
+        db.query(models.AgendaNota)
+        .filter(models.AgendaNota.fecha == dia)
+        .order_by(models.AgendaNota.creada, models.AgendaNota.id)
+        .all()
+    )
+    # Últimos días con anotaciones, para poder volver a ellos
+    recientes = (
+        db.query(models.AgendaNota.fecha, func.count())
+        .group_by(models.AgendaNota.fecha)
+        .order_by(models.AgendaNota.fecha.desc())
+        .limit(12)
+        .all()
+    )
+    return render(
+        request, db, user, "agenda.html", dia=dia, notas=notas,
+        anterior=dia - timedelta(days=1), siguiente=dia + timedelta(days=1),
+        es_hoy=dia == date.today(), hoy=date.today(),
+        recientes=[(f, n) for f, n in recientes], max_nota=MAX_NOTA,
+    )
+
+
+@app.post("/agenda")
+def agenda_anotar(
+    fecha: str = Form(""),
+    texto: str = Form(""),
+    db: Session = Depends(get_db),
+    user=Depends(usuario_actual),
+):
+    dia = _fecha_agenda(fecha)
+    destino = f"/agenda?fecha={dia.isoformat()}"
+    texto = texto.strip()
+    if not texto:
+        return volver(destino, error="Escribe algo antes de guardar la nota.")
+    if len(texto) > MAX_NOTA:
+        return volver(destino, error=f"La nota es demasiado larga (máximo {MAX_NOTA} caracteres).")
+    db.add(models.AgendaNota(fecha=dia, usuario_id=user.id, texto=texto))
+    db.commit()
+    return volver(destino, ok="Nota guardada.")
+
+
+@app.post("/agenda/{nota_id}/eliminar")
+def agenda_eliminar(
+    nota_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(usuario_actual),
+):
+    nota = db.get(models.AgendaNota, nota_id)
+    if not nota:
+        return volver("/agenda", error="Esa nota no existe.")
+    destino = f"/agenda?fecha={nota.fecha.isoformat()}"
+    if nota.usuario_id != user.id and user.rol != "admin":
+        return volver(destino, error="Solo puede borrar una nota quien la escribió o un administrador.")
+    db.delete(nota)
+    db.commit()
+    return volver(destino, ok="Nota eliminada.")
+
+
+# --------------------------------------------------------------------------
 # Ajustes
 # --------------------------------------------------------------------------
 
@@ -1167,8 +1319,17 @@ def vista_ajustes(
     user=Depends(solo_admin),
 ):
     usuarios = db.query(models.Usuario).order_by(models.Usuario.nombre).all()
-    return render(request, db, user, "ajustes.html", usuarios=usuarios,
-                  def_primario=COLOR_PRIMARIO, def_cabecera=COLOR_CABECERA)
+    config = get_or_create_config(db)
+    programa = programa_desde(config)
+    return render(
+        request, db, user, "ajustes.html", usuarios=usuarios,
+        def_primario=COLOR_PRIMARIO, def_cabecera=COLOR_CABECERA,
+        frecuencias=copias.FRECUENCIAS, dias_semana=copias.DIAS_SEMANA,
+        proxima_copia=copias.proxima(programa, datetime.now()),
+        descripcion_copia=copias.describir(programa),
+        lista_copias=copias.listar(BACKUPS_DIR, 15),
+        carpeta_copias=str(BACKUPS_DIR),
+    )
 
 
 @app.post("/ajustes/guardar")
@@ -1183,6 +1344,13 @@ def guardar_ajustes(
     color_cabecera: str = Form(""),
     quitar_logo: str = Form(None),
     logo: UploadFile = File(None),
+    backup_activo: str = Form(None),
+    backup_frecuencia: str = Form("diaria"),
+    backup_cada_dias: int = Form(1),
+    backup_dia_semana: int = Form(0),
+    backup_dia_mes: int = Form(1),
+    backup_hora: str = Form("03:00"),
+    backup_conservar: int = Form(14),
     db: Session = Depends(get_db),
     user=Depends(solo_admin),
 ):
@@ -1201,6 +1369,28 @@ def guardar_ajustes(
     config.color_primario = color_valido(color_primario, None)
     config.color_cabecera = color_valido(color_cabecera, None)
 
+    # --- copias automáticas ---
+    if backup_frecuencia not in {k for k, _ in copias.FRECUENCIAS}:
+        return volver("/ajustes", error="La frecuencia de las copias no es válida.")
+    if copias.parsear_hora(backup_hora) is None:
+        return volver("/ajustes", error="La hora de la copia no es válida (usa el formato HH:MM).")
+    if not (1 <= backup_cada_dias <= 365 and 0 <= backup_dia_semana <= 6
+            and 1 <= backup_dia_mes <= 31 and 1 <= backup_conservar <= 365):
+        return volver("/ajustes", error="Revisa los valores de las copias automáticas.")
+    nuevo_horario = (
+        1 if backup_activo else 0, backup_frecuencia, backup_cada_dias,
+        backup_dia_semana, backup_dia_mes, copias.parsear_hora(backup_hora).strftime("%H:%M"),
+    )
+    horario_actual = (
+        1 if config.backup_activo else 0, config.backup_frecuencia, config.backup_cada_dias,
+        config.backup_dia_semana, config.backup_dia_mes, config.backup_hora,
+    )
+    if nuevo_horario != horario_actual:
+        config.backup_desde = datetime.now()      # el nuevo horario cuenta desde ahora
+    (config.backup_activo, config.backup_frecuencia, config.backup_cada_dias,
+     config.backup_dia_semana, config.backup_dia_mes, config.backup_hora) = nuevo_horario
+    config.backup_conservar = backup_conservar
+
     if logo is not None and logo.filename:
         try:
             config.logo_url = guardar_logo(logo)
@@ -1213,6 +1403,28 @@ def guardar_ajustes(
 
     db.commit()
     return volver("/ajustes", ok="Ajustes guardados.")
+
+
+@app.post("/ajustes/backups/ahora")
+def copia_ahora(
+    db: Session = Depends(get_db),
+    user=Depends(solo_admin),
+):
+    """Guarda una copia en la carpeta de backups sin esperar al horario."""
+    try:
+        destino = copias.crear_copia(DB_PATH, BACKUPS_DIR)
+        copias.podar(BACKUPS_DIR, get_or_create_config(db).backup_conservar or 14)
+    except Exception as e:
+        return volver("/ajustes#copias", error=f"No se pudo crear la copia: {e}")
+    return volver("/ajustes#copias", ok=f"Copia guardada: {destino.name}")
+
+
+@app.get("/ajustes/backups/{nombre}")
+def descargar_backup(nombre: str, user=Depends(solo_admin)):
+    if not copias.PATRON.match(nombre) or not (BACKUPS_DIR / nombre).is_file():
+        return volver("/ajustes#copias", error="Esa copia no existe.")
+    return FileResponse(BACKUPS_DIR / nombre, filename=nombre,
+                        media_type="application/octet-stream")
 
 
 @app.get("/ajustes/copia-seguridad")

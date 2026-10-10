@@ -14,8 +14,10 @@ Desarrollada con **Python + FastAPI**. Los datos se guardan en un único archivo
 - **Panel de inicio**: estado de los socios, cobrado en el año, últimos pagos y cumpleaños del mes.
 - **Importar socios desde Excel o CSV**, con detección automática de columnas y limpieza de datos ([ver más](#importar-y-exportar-socios)).
 - **Exportar socios a Excel**.
+- **Agenda diaria**: pantalla para anotar observaciones de cada día, con la fecha y el usuario que las escribió ([ver más](#agenda-diaria)).
+- **Copias de seguridad automáticas** programables desde Ajustes: frecuencia, hora y número de copias a conservar ([ver más](#copias-de-seguridad)).
 - **Usuarios y roles**: administrador y gestor.
-- **Ajustes** (solo administradores): datos de la asociación, logo, colores de la aplicación, importe de la cuota, usuarios y copia de seguridad.
+- **Ajustes** (solo administradores): datos de la asociación, logo, colores de la aplicación, importe de la cuota, usuarios y copias de seguridad.
 - Funciona **sin conexión a internet**: no depende de CDN ni de librerías externas en el navegador.
 
 ### Estados de los socios
@@ -55,7 +57,8 @@ El estado se calcula a partir del último pago no anulado:
     ├── auth.py                 # contraseñas y sesiones firmadas
     ├── importar.py             # lectura y limpieza de Excel/CSV
     ├── exportar.py             # generación del Excel de socios
-    ├── formatos.py             # formato de fechas e importes
+    ├── formatos.py             # formato de fechas, importes y tamaños
+    ├── copias.py               # programación y creación de copias automáticas
     ├── migraciones.py          # cambios de esquema en bases ya existentes
     ├── requirements.txt
     ├── templates/              # páginas (Jinja2)
@@ -72,14 +75,14 @@ Hay tres formas, de más a menos recomendable para un servidor:
 | [**Servicio systemd**](#instalación-sin-docker-servicio-de-linux) | Servidor Linux sin Docker. |
 | [**Desarrollo local**](#desarrollo-local) | Para probar o modificar la aplicación en tu ordenador. |
 
-En las tres, todo lo que cambia con el uso (base de datos, clave de sesión, logo y copias) se guarda en una única carpeta de datos. En Docker y systemd es `data/`, en la raíz del repositorio:
+En las tres, lo que cambia con el uso se guarda fuera del código, en dos carpetas. En Docker y systemd están en la raíz del repositorio:
 
-| Contenido de `data/` | Qué es |
+| Carpeta | Contenido |
 |---|---|
-| `asociacion.db` | Base de datos |
-| `.secret_key` | Clave que firma las sesiones |
-| `uploads/` | Logo de la asociación |
-| `copias/` | Copias automáticas previas a cada importación |
+| `data/` | `asociacion.db` (base de datos), `.secret_key` (clave que firma las sesiones), `uploads/` (logo) y `copias/` (copias previas a cada importación) |
+| `backups/` | Copias automáticas de la base de datos, programadas desde Ajustes |
+
+Están separadas a propósito: `backups/` se puede apuntar a otro disco o a un NAS sin tocar nada más (ver [Copias de seguridad](#copias-de-seguridad)).
 
 ### Instalación con Docker (recomendada)
 
@@ -112,7 +115,7 @@ docker compose start                 # arrancar
 
 #### Trasladar la instalación a otro servidor
 
-Con la aplicación parada en el origen (`docker compose stop`), copia la carpeta `data/` completa al mismo sitio del servidor nuevo y ejecuta allí `./desplegar.sh`.
+Con la aplicación parada en el origen (`docker compose stop`), copia la carpeta `data/` completa (y, si quieres conservar las copias, `backups/`) al mismo sitio del servidor nuevo y ejecuta allí `./desplegar.sh`.
 
 Si vienes de una instalación antigua **sin carpeta de datos** (la base de datos junto a `main.py`), crea `data/` y copia:
 
@@ -199,7 +202,8 @@ Abre <http://127.0.0.1:8000>. Si ya tienes una base de datos, copia tu `asociaci
 
 | Variable | Descripción | Por defecto |
 |---|---|---|
-| `ASOCIACION_DATA` | Carpeta donde se guardan base de datos, clave, logo y copias | La carpeta del código (en Docker, `/data`) |
+| `ASOCIACION_DATA` | Carpeta donde se guardan base de datos, clave, logo y copias previas a importar | La carpeta del código (en Docker, `/data`) |
+| `ASOCIACION_BACKUPS` | Carpeta de las copias automáticas | `<ASOCIACION_DATA>/backups` (en Docker, `/backups`) |
 | `ASOCIACION_COOKIE_SECURE` | Con `1`, la cookie de sesión solo viaja por HTTPS | Automático según el protocolo de la petición |
 | `ASOCIACION_SECRET` | Clave de firma de sesiones (sustituye a `.secret_key`) | Se genera en `.secret_key` |
 | `FORWARDED_ALLOW_IPS` | IPs de proxy en las que uvicorn confía | `127.0.0.1` |
@@ -228,6 +232,15 @@ Si el ticket sale cortado por los lados o con demasiado margen, ajusta el ancho 
 ```
 
 72 mm es lo habitual en papel de 80 mm. Para papel de 58 mm, prueba con `48mm`.
+
+## Agenda diaria
+
+La pestaña **Agenda** es un pequeño cuaderno para anotar cuatro cosas de cada día: una incidencia, un recado, algo que recordar.
+
+- Se abre en el día de hoy. Con **Anterior**, **Siguiente**, **Hoy** o el selector de fecha se navega a cualquier otro día, y a la derecha aparece la lista de los últimos días con anotaciones.
+- Cada nota guarda el **día** al que se refiere, **quién** la escribió y **a qué hora**. Si se escribe una nota en un día distinto al de su fecha, se indica la fecha completa.
+- Todos los usuarios pueden escribir. Solo puede **eliminar** una nota quien la escribió o un administrador.
+- Máximo 2000 caracteres por nota; se respetan los saltos de línea.
 
 ## Importar y exportar socios
 
@@ -270,19 +283,65 @@ Antes de cada importación se hace una **copia automática** de la base de datos
 
 ## Copias de seguridad
 
-- **Ajustes → Copia de seguridad** descarga la base de datos en caliente. Guárdala fuera del servidor.
-- Lo esencial es la carpeta `data/`. Para copiarla completa con la aplicación parada (Docker):
+### Copias automáticas
+
+En **Ajustes → Copias de seguridad automáticas** (solo administradores) se programa una copia periódica de la base de datos (socios, pagos, agenda, usuarios y ajustes):
+
+| Opción | Valores |
+|---|---|
+| **Frecuencia** | Todos los días, cada *N* días, una vez a la semana (a elegir el día) o una vez al mes (a elegir el día del mes) |
+| **Hora** | La que quieras, por ejemplo `03:00` para hacerla de madrugada |
+| **Copias que se conservan** | Número de copias; al superarlo se borran solas las más antiguas |
+
+- Se guardan en la carpeta `backups/` como `asociacion_AAAA-MM-DD_HHMMSS.db`. En Ajustes se ven las copias existentes, se pueden descargar y se puede hacer una **copia ahora** sin esperar al horario.
+- La pantalla muestra cuándo será la próxima copia y el resultado de la última (con el error, si lo hubo).
+- Si el servidor estaba apagado a la hora prevista, la copia se hace al volver a encenderse (una sola, no una por cada hueco).
+- Al cambiar el horario, la cuenta empieza desde ese momento.
+- Las copias se hacen con el mecanismo de copia en caliente de SQLite, así que son consistentes aunque alguien esté usando la aplicación. Se usa la hora del servidor (`TZ`).
+- Solo se copia la base de datos. El logo (`data/uploads/`) y la clave de sesión (`data/.secret_key`) están en `data/`.
+- Los archivos de `backups/` que no sigan ese nombre no se tocan nunca.
+
+### Guardar las copias en otro disco o NAS
+
+En Docker, `backups/` es un volumen aparte. Cambia la ruta de la izquierda en `docker-compose.yml` (por ejemplo, un NAS ya montado en el servidor) y ejecuta `./desplegar.sh`:
+
+```yaml
+volumes:
+  - ./data:/data
+  - /mnt/nas/asociacion:/backups
+```
+
+Sin Docker, define `ASOCIACION_BACKUPS` con la ruta (en el servicio de systemd, edita la línea `Environment=ASOCIACION_BACKUPS=...`). La carpeta debe ser escribible por el usuario del servicio.
+
+> Una copia en el mismo disco no protege de un fallo del disco. Lleva de vez en cuando `backups/` fuera del servidor.
+
+### Restaurar una copia
+
+Con la aplicación parada, sustituye la base de datos por la copia elegida:
+
+```bash
+docker compose stop
+cp data/asociacion.db data/asociacion_antes_de_restaurar.db      # por si acaso
+sudo cp backups/asociacion_2026-09-29_030000.db data/asociacion.db
+sudo chown 1000:1000 data/asociacion.db                          # con systemd: el usuario "asociacion"
+docker compose start
+```
+
+### Otras copias
+
+- **Ajustes → Copias guardadas → Descargar la base de datos actual** descarga una copia en el momento. Guárdala fuera del servidor.
+- Para copiar todo (datos y logo) con la aplicación parada:
 
     ```bash
     docker compose stop && tar czf copia_$(date +%F).tar.gz data && docker compose start
     ```
 
-- Antes de cada importación se guarda una copia automática en `copias/`.
+- Antes de cada importación se guarda una copia automática en `data/copias/` (se conservan las 10 últimas).
 - La primera vez que se arranca una versión con cambios de esquema, se guarda una copia junto a la base de datos (`asociacion_antes_de_migrar_*.db`).
 
 ## Pruebas
 
-La lógica de importación, la exportación, las migraciones de la base de datos y las plantillas de recibo y ticket tienen pruebas automáticas, que no necesitan nada más que las dependencias de la aplicación:
+La lógica de importación, la exportación, las migraciones de la base de datos, la programación de las copias automáticas y las plantillas (recibo, ticket, agenda y ajustes) tienen pruebas automáticas, que no necesitan nada más que las dependencias de la aplicación:
 
 ```bash
 pip install -r src/requirements.txt
@@ -302,7 +361,7 @@ La aplicación gestiona datos personales de socios (RGPD).
 - `.secret_key` firma las sesiones. No lo compartas. Si lo borras, todos tendrán que volver a iniciar sesión.
 - Cambia la contraseña inicial `admin123` (la aplicación te obliga al primer acceso).
 - No expongas la aplicación a internet sin HTTPS.
-- Los usuarios se desactivan, no se borran, para conservar el historial de quién hizo cada cambio.
+- Los usuarios se desactivan, no se borran, para conservar el historial de quién hizo cada cambio y cada nota de la agenda.
 - Un socio con recibos emitidos no se puede eliminar; se da de baja.
 
 ## Notas

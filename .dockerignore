@@ -1,5 +1,6 @@
 .git
 data
+backups
 **/__pycache__
 src/*.db
 src/.secret_key

@@ -29,8 +29,8 @@ python3 -m venv "$REPO/.venv"
 "$REPO/.venv/bin/pip" install --quiet --upgrade pip
 "$REPO/.venv/bin/pip" install --quiet -r "$REPO/src/requirements.txt"
 
-mkdir -p "$REPO/data"
-chown -R "$USUARIO" "$REPO/data"
+mkdir -p "$REPO/data" "$REPO/backups"
+chown -R "$USUARIO" "$REPO/data" "$REPO/backups"
 
 cat > /etc/systemd/system/asociacion.service <<UNIT
 [Unit]
@@ -41,6 +41,7 @@ After=network.target
 User=$USUARIO
 WorkingDirectory=$REPO/src
 Environment=ASOCIACION_DATA=$REPO/data
+Environment=ASOCIACION_BACKUPS=$REPO/backups
 Environment=FORWARDED_ALLOW_IPS=$IP_PROXY
 ExecStart=$REPO/.venv/bin/uvicorn main:app --host 0.0.0.0 --port $PUERTO --proxy-headers
 Restart=always
