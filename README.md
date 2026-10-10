@@ -9,6 +9,7 @@ Desarrollada con **Python + FastAPI**. Los datos se guardan en un único archivo
 - **Socios**: listado con búsqueda y ordenación, ficha con datos personales, edición, baja manual y reactivación, e historial de cambios (quién hizo qué y cuándo).
 - **Cuotas y pagos**: registro de pagos (efectivo, tarjeta o transferencia) con numeración correlativa de recibos (`ARM-CUO2026-001`).
 - **Recibos imprimibles**: incluyen el logo, el nombre, el CIF, la dirección, el teléfono y el correo de la asociación definidos en Ajustes. Se imprimen tal y como se ven en pantalla.
+- **Ticket de 80 mm**: el mismo recibo en formato ticket para impresora térmica, con el logo y los datos de la asociación ([ver más](#impresión-del-recibo-y-del-ticket)).
 - **Anulación de recibos**: los recibos no se borran, se anulan (con motivo) y conservan su número, para que la numeración siga siendo correlativa.
 - **Panel de inicio**: estado de los socios, cobrado en el año, últimos pagos y cumpleaños del mes.
 - **Importar socios desde Excel o CSV**, con detección automática de columnas y limpieza de datos ([ver más](#importar-y-exportar-socios)).
@@ -54,6 +55,7 @@ El estado se calcula a partir del último pago no anulado:
     ├── auth.py                 # contraseñas y sesiones firmadas
     ├── importar.py             # lectura y limpieza de Excel/CSV
     ├── exportar.py             # generación del Excel de socios
+    ├── formatos.py             # formato de fechas e importes
     ├── migraciones.py          # cambios de esquema en bases ya existentes
     ├── requirements.txt
     ├── templates/              # páginas (Jinja2)
@@ -203,6 +205,30 @@ Abre <http://127.0.0.1:8000>. Si ya tienes una base de datos, copia tu `asociaci
 | `FORWARDED_ALLOW_IPS` | IPs de proxy en las que uvicorn confía | `127.0.0.1` |
 | `TZ` | Zona horaria de las fechas y horas de los recibos | `Europe/Madrid` en Docker |
 
+## Impresión del recibo y del ticket
+
+En la página de cada recibo (**Cuotas y pagos →** pulsa un recibo) hay dos botones:
+
+- **Imprimir recibo**: hoja A4, tal y como se ve en pantalla.
+- **Imprimir ticket**: formato ticket para impresora térmica de **80 mm**. Se abre en una pestaña nueva y lanza el cuadro de impresión. Incluye el logo, el nombre, el CIF, la dirección, el teléfono y el correo de la asociación (los de **Ajustes**), los datos del recibo y del socio, y el importe. Si el recibo está anulado, lo indica.
+
+Ambos usan los datos y el logo definidos en Ajustes.
+
+### Configurar la impresión del ticket
+
+En el cuadro de impresión del navegador:
+
+1. Elige tu **impresora térmica** (con su controlador instalado) y, como tamaño de papel, el de **80 mm** (suele llamarse *Roll Paper 80 mm* o similar).
+2. **Márgenes**: ninguno. **Escala**: 100 %. Desactiva *Encabezados y pies de página*.
+
+Si el ticket sale cortado por los lados o con demasiado margen, ajusta el ancho útil en la primera línea de `src/static/ticket.css`:
+
+```css
+:root { --ancho-ticket: 72mm; }
+```
+
+72 mm es lo habitual en papel de 80 mm. Para papel de 58 mm, prueba con `48mm`.
+
 ## Importar y exportar socios
 
 Ambas funciones están en **Socios** y son solo para administradores.
@@ -256,7 +282,7 @@ Antes de cada importación se hace una **copia automática** de la base de datos
 
 ## Pruebas
 
-La lógica de importación, la exportación y las migraciones de la base de datos tienen pruebas automáticas, que no necesitan nada más que las dependencias de la aplicación:
+La lógica de importación, la exportación, las migraciones de la base de datos y las plantillas de recibo y ticket tienen pruebas automáticas, que no necesitan nada más que las dependencias de la aplicación:
 
 ```bash
 pip install -r src/requirements.txt

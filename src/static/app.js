@@ -76,3 +76,8 @@ if (preview) {
   );
   pintar();
 }
+
+// Ticket: abrir el diálogo de impresión al cargar (<body data-autoprint>)
+if (document.body.hasAttribute("data-autoprint")) {
+  window.addEventListener("load", () => setTimeout(() => window.print(), 300));
+}

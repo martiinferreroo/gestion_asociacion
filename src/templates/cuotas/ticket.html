@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ticket {{ cuota.id_cuota }}</title>
+    <link rel="stylesheet" href="{{ asset('ticket.css') }}">
+</head>
+<body {% if imprimir %}data-autoprint{% endif %}>
+
+<div class="barra no-print">
+    <a href="/cuotas/{{ cuota.id_cuota }}">← Volver al recibo</a>
+    <button type="button" onclick="window.print()">Imprimir ticket</button>
+    <p>En el cuadro de impresión elige tu impresora térmica con papel de 80&nbsp;mm, sin márgenes y escala al 100&nbsp;%.</p>
+</div>
+
+<article class="ticket">
+    {% if config.logo_url %}<img class="logo" src="{{ config.logo_url }}" alt="">{% endif %}
+    <h1>{{ config.nombre_asociacion }}</h1>
+    <div class="emisor">
+        {% if config.cif %}<p>CIF {{ config.cif }}</p>{% endif %}
+        {% if config.direccion %}<p>{{ config.direccion }}</p>{% endif %}
+        {% if config.telefono %}<p>Tel. {{ config.telefono }}</p>{% endif %}
+        {% if config.email %}<p>{{ config.email }}</p>{% endif %}
+    </div>
+
+    <hr>
+    <p class="titulo">RECIBO DE CUOTA</p>
+    <p class="num">{{ cuota.id_cuota }}</p>
+
+    <div class="filas">
+        <div><span>Fecha</span><b>{{ cuota.fecha_pago|fechahora }}</b></div>
+        <div><span>Socio nº</span><b>{{ cuota.socio.num_socio }}</b></div>
+    </div>
+    <p class="socio">{{ cuota.socio.nombre }} {{ cuota.socio.apellidos }}<br>DNI/NIE {{ cuota.socio.dni }}</p>
+
+    <hr>
+    <div class="filas">
+        <div><span>Concepto</span><b>CUOTA ANUAL {{ cuota.fecha_pago.year }}</b></div>
+        <div><span>Forma de pago</span><b>{{ cuota.forma_pago }}</b></div>
+    </div>
+
+    <hr class="doble">
+    <div class="total"><span>TOTAL</span><b>{{ cuota.importe|eur }}</b></div>
+    <hr class="doble">
+
+    {% if cuota.anulada %}
+    <p class="anulado">*** ANULADO ***</p>
+    <p class="peq">Anulado el {{ cuota.fecha_anulacion|fechahora }}.<br>Motivo: {{ cuota.motivo_anulacion }}</p>
+    {% endif %}
+</article>
+
+<script src="{{ asset('app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+/* Ticket para impresora térmica de 80 mm.
+   Ancho útil de impresión: 72 mm (4 mm de margen a cada lado en papel de 80).
+   Para papel de 58 mm, usa unos 48mm. */
+:root { --ancho-ticket: 72mm; }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: #e5e7eb; color: #000;
+  font: 10pt/1.35 "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+/* ---- Solo en pantalla ---- */
+.barra { max-width: 440px; margin: 18px auto 0; padding: 0 14px; text-align: center; }
+.barra a { color: #0f766e; font-size: .9rem; margin-right: 14px; }
+.barra button {
+  background: #0f766e; color: #fff; border: 0; border-radius: 8px;
+  padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.barra p { margin: 10px 0 0; font-size: .8rem; color: #4b5563; }
+
+.ticket {
+  width: var(--ancho-ticket); margin: 16px auto 40px; background: #fff;
+  padding: 4mm 3mm 12mm; box-shadow: 0 1px 8px rgba(0, 0, 0, .25);
+}
+
+/* ---- Contenido (monocromo, pensado para térmica) ---- */
+.ticket * { color: #000; }
+.logo {
+  display: block; margin: 0 auto 2mm; max-width: 100%; max-height: 22mm;
+  object-fit: contain; filter: grayscale(1) contrast(1.6);
+}
+h1 { font-size: 13pt; text-align: center; margin: 0 0 1mm; line-height: 1.2; overflow-wrap: anywhere; }
+.emisor p { margin: 0; text-align: center; font-size: 8.5pt; overflow-wrap: anywhere; }
+hr { border: 0; border-top: 1px dashed #000; margin: 3mm 0; }
+hr.doble { border-top: 2px solid #000; }
+.titulo { text-align: center; font-weight: 700; letter-spacing: .06em; margin: 0; }
+.num { text-align: center; font-weight: 700; font-size: 11pt; margin: 0 0 2mm; }
+.filas div { display: flex; justify-content: space-between; gap: 3mm; margin-bottom: 1mm; }
+.filas span { flex-shrink: 0; }
+.filas b { text-align: right; overflow-wrap: anywhere; }
+.socio { margin: 2mm 0 0; font-size: 9.5pt; overflow-wrap: anywhere; }
+.total { display: flex; justify-content: space-between; align-items: baseline; }
+.total span { font-weight: 700; font-size: 12pt; }
+.total b { font-size: 17pt; }
+.anulado { text-align: center; font-weight: 700; font-size: 14pt; border: 2px solid #000; padding: 1mm; margin: 3mm 0 1mm; }
+.peq { font-size: 8.5pt; text-align: center; margin: 0; }
+
+@media print {
+  /* Margen 0: sin la cabecera y el pie que añade el navegador */
+  @page { margin: 0; }
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .ticket { width: var(--ancho-ticket); margin: 0 auto; padding: 2mm 0 12mm; box-shadow: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

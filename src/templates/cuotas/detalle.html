@@ -5,6 +5,7 @@
     <a class="back" href="/cuotas" style="margin-bottom:10px;">← Volver a cuotas y pagos</a>
     <div class="actions">
         <button type="button" class="btn" onclick="window.print()">Imprimir recibo</button>
+        <a class="btn sec" href="/cuotas/{{ cuota.id_cuota }}/ticket?imprimir=1" target="_blank" rel="noopener">Imprimir ticket</a>
         <a class="btn sec" href="/socios/{{ cuota.socio.num_socio }}">Ver ficha del socio</a>
     </div>
 </div>

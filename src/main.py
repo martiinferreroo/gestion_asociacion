@@ -19,6 +19,7 @@ from starlette.background import BackgroundTask
 
 import auth
 import exportar
+import formatos
 import importar
 import migraciones
 import models
@@ -164,29 +165,9 @@ templates.env.globals["DNI_GENERICO"] = importar.DNI_GENERICO
 # Filtros y tema
 # --------------------------------------------------------------------------
 
-def _fecha(value, formato="%d/%m/%Y"):
-    if not value:
-        return ""
-    if isinstance(value, str):
-        try:
-            value = datetime.fromisoformat(value)
-        except ValueError:
-            return value
-    return value.strftime(formato)
-
-
-def _fechahora(value):
-    return _fecha(value, "%d/%m/%Y %H:%M")
-
-
-def _euros(value):
-    numero = f"{(value or 0):,.2f}"
-    return numero.replace(",", "X").replace(".", ",").replace("X", ".") + " €"
-
-
-templates.env.filters["fecha"] = _fecha
-templates.env.filters["fechahora"] = _fechahora
-templates.env.filters["eur"] = _euros
+templates.env.filters["fecha"] = formatos.fecha
+templates.env.filters["fechahora"] = formatos.fechahora
+templates.env.filters["eur"] = formatos.euros
 
 
 def color_valido(valor, defecto):
@@ -1093,7 +1074,7 @@ def registrar_pago(
         forma_pago=forma_pago, importe=importe,
     ))
     anotar(db, num_socio, user, "Pago de cuota",
-           f"Registrado el recibo {id_cuota} ({forma_pago}, {_euros(importe)}).")
+           f"Registrado el recibo {id_cuota} ({forma_pago}, {formatos.euros(importe)}).")
     db.commit()
     comprobar_estados_socios(db)
     return volver(f"/cuotas/{id_cuota}", ok="Pago registrado.")
@@ -1110,6 +1091,22 @@ def detalle_cuota(
     if not cuota:
         return volver("/cuotas", error="Ese recibo no existe.")
     return render(request, db, user, "cuotas/detalle.html", cuota=cuota)
+
+
+@app.get("/cuotas/{id_cuota}/ticket")
+def ticket_cuota(
+    id_cuota: str,
+    request: Request,
+    imprimir: str = None,
+    db: Session = Depends(get_db),
+    user=Depends(usuario_actual),
+):
+    """Recibo en formato ticket (impresora térmica de 80 mm)."""
+    cuota = db.get(models.Cuota, id_cuota)
+    if not cuota:
+        return volver("/cuotas", error="Ese recibo no existe.")
+    return render(request, db, user, "cuotas/ticket.html",
+                  cuota=cuota, imprimir=bool(imprimir))
 
 
 @app.post("/cuotas/{id_cuota}/anular")
